@@ -1,0 +1,77 @@
+---
+- name: Configure log hosts
+  hosts: log
+  become: true
+  vars:
+    ansible_ssh_private_key_file: ".vagrant/machines/log/virtualbox/private_key"
+
+
+  tasks:
+  - name: Set timezone to Asia/Irkutsk
+    community.general.timezone:
+      name: Asia/Irkutsk
+
+  - name: "Uncomment the line"
+    replace:
+      path: /etc/rsyslog.conf
+      regexp: '^\s*#*\s*(\$ModLoad imudp)'
+      replace: '\1'
+    notify: Restart rsyslog
+
+  - name: "Uncomment the line"
+    replace:
+      path: /etc/rsyslog.conf
+      regexp: '^\s*#*\s*(\$UDPServerRun 514)'
+      replace: '\1'
+    notify: Restart rsyslog
+
+  - name: "Uncomment the line"
+    replace:
+      path: /etc/rsyslog.conf
+      regexp: '^\s*#*\s*(\$ModLoad imtcp)'
+      replace: '\1'
+    notify: Restart rsyslog
+
+  - name: "Uncomment the line"
+    replace:
+      path: /etc/rsyslog.conf
+      regexp: '^\s*#*\s*(\$InputTCPServerRun 514)'
+      replace: '\1'
+    notify: Restart rsyslog
+
+  - name: Add to file
+    lineinfile:
+      path: /etc/rsyslog.conf
+      line: '$template RemoteLogs,"/var/log/rsyslog/%HOSTNAME%/%PROGRAMNAME%.log"'
+    notify: Restart rsyslog
+
+  - name: Add to file
+    lineinfile:
+      path: /etc/rsyslog.conf
+      line: '*.* ?RemoteLogs'
+    notify: Restart rsyslog
+
+  - name: Add to file
+    lineinfile:
+      path: /etc/rsyslog.conf
+      line: '& ~'
+    notify: Restart rsyslog
+
+  - name: Replace line in auditd.log
+    lineinfile:
+      path: /etc/audit/auditd.conf
+      regex: 'tcp_listen_port'
+      line: 'tcp_listen_port = 60'
+    notify: Restart auditd
+
+  handlers:
+  - name: Restart auditd
+    command: "service auditd restart"
+    environment:
+      PATH: '/usr/sbin:/usr/bin:/sbin:/bin'
+
+  - name: Restart rsyslog
+    service:
+      name: rsyslog
+      state: restarted
+

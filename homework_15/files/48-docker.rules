@@ -1,0 +1,9 @@
+/* -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*- */
+
+
+
+polkit.addAdminRule(function(action, subject) {
+    if (action.lookup("unit") == "docker.service" && subject.user == "otusadm"){
+    	return polkit.Result.YES
+    }
+});

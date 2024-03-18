@@ -1,0 +1,26 @@
+Vagrant.configure("2") do |config|
+    config.vm.box = "centos/7"
+
+    config.vm.provider :virtualbox do |v|
+        v.memory = 4096
+        v.cpus = 2
+    end
+
+    boxes = [
+        { 
+            :name => "server",
+            :ip => "192.168.11.160",
+        },
+        {
+            :name => "client",
+            :ip => "192.168.11.150",
+        }
+    ]
+
+    boxes.each do |opts|
+        config.vm.define opts[:name] do |config|
+            config.vm.hostname = opts[:name]
+            config.vm.network "private_network", ip: opts[:ip]
+        end
+    end
+end

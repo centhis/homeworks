@@ -1,0 +1,49 @@
+---
+- name: Configure elk hosts
+  hosts: elk
+  become: true
+  vars:
+    ansible_ssh_private_key_file: ".vagrant/machines/elk/virtualbox/private_key"
+
+  tasks:
+  - name: Set timezone to Asia/Irkutsk
+    community.general.timezone:
+      name: Asia/Irkutsk
+      
+  - name: Install
+    yum:
+      name: yum-utils
+      state: present
+
+  - name: Add repository
+    command: 'yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo'
+
+  - name: Install docker
+    yum:
+      name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      state: present
+    notify: Docker start
+
+  - name: Sysctl set vm.max_map_count=262144
+    ansible.posix.sysctl:
+      name: vm.max_map_count
+      value: '262144'
+      state: present
+
+  - name: Pull an image
+    command: 'docker pull sebp/elk'
+    notify: Run container
+ 
+  handlers:
+  - name: Docker start
+    service: 
+      name: docker
+      state: started
+
+  - name: Run container
+    command: 'docker run --restart=always -p 5601:5601 -p 9200:9200 -p 5044:5044 -e TZ=Asia/Irkutsk --hostname 192.168.11.20 --name elk.dev -d sebp/elk'

@@ -1,0 +1,108 @@
+---
+- name: Configure web hosts
+  hosts: web
+  become: true
+  vars:
+    ansible_ssh_private_key_file: ".vagrant/machines/web/virtualbox/private_key"
+
+  tasks:
+  - name: Set timezone to Asia/Irkutsk
+    community.general.timezone:
+      name: Asia/Irkutsk
+
+  - name: Instal Epel
+    yum:
+      name: epel-release
+      state: present 
+  - name: Install packages
+    yum:
+      name: 
+      - vim
+      - nginx
+      - audispd-plugins
+      state: present
+
+  - name: Add line to nginx.conf
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: 'error_log.*/var/log/nginx/error.log'
+      line: 'error_log syslog:server=192.168.11.15:514,tag=nginx_error;'
+#      validate: /usr/sbin/nginx -t
+    notify: Restart nginx
+  
+  - name: Add line to nginx.conf
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: 'error_log.*/var/log/nginx/error.log'
+      line: 'error_log syslog:server=192.168.11.20:5044,tag=nginx_error;'
+#      validate: /usr/sbin/nginx -t
+    notify: Restart nginx
+
+  - name: Add line to nginx.conf
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: 'access_log.*/var/log/nginx/access.log'
+      line: 'access_log syslog:server=192.168.11.15:514,tag=nginx_access,severity=info combined;'
+#      validate: /usr/sbin/nginx -t
+    notify: Restart nginx
+
+  - name: Add line to nginx.conf
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: 'access_log.*/var/log/nginx/access.log'
+      line: 'access_log syslog:server=192.168.11.20:5044,tag=nginx_access,severity=info combined;'
+#      validate: /usr/sbin/nginx -t
+    notify: Restart nginx
+  
+  - name: Add line to audit.rules
+    lineinfile:
+      path: /etc/audit/rules.d/audit.rules
+      line: '-w /etc/nginx/nginx.conf -p wa -k nginx.conf'
+    notify: Restart auditd
+
+  - name: Add line to audit.rules
+    lineinfile:
+      path: /etc/audit/rules.d/audit.rules
+      line: '-w /etc/nginx/default.d/ -p wa -k nginx.conf'
+    notify: Restart auditd
+
+  - name: Replace line in auditd.conf
+    lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: '^log_format = '
+      line: 'log_format = RAW'
+    notify: Restart auditd
+  
+  - name: Replace line in auditd.conf
+    lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: '^name_format = '
+      line: 'name_format = HOSTNAME'
+    notify: Restart auditd
+
+  - name: Replace line in au-remote.conf
+    lineinfile:
+      path: /etc/audisp/plugins.d/au-remote.conf
+      regexp: 'active ='
+      line: 'active = yes'
+    notify: Restart auditd
+  
+  - name: Replace line in audisp-remote.conf
+    lineinfile:
+      path: /etc/audisp/audisp-remote.conf
+      regexp: 'remote_server = '
+      line: 'remote_server = 192.168.11.15'
+    notify: Restart auditd
+
+
+  handlers:
+  - name: Restart auditd
+    command: "service auditd restart"
+    environment:
+      PATH: '/usr/sbin:/usr/bin:/sbin:/bin'
+
+  - name: Restart nginx
+    service:
+      name: nginx
+      state: restarted
+  

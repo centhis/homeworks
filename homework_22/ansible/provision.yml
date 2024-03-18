@@ -1,0 +1,59 @@
+---
+- name: VPN
+  hosts: all
+  become: yes
+
+  tasks:
+  - name: install base tools
+    apt:
+      name:
+        - openvpn
+        - iperf3
+        - selinux-utils
+
+  # - name: disable selinux
+  #   ansible.posix.selinux:
+  #     state: disabled
+
+  - name: copy files
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: 0644
+    with_items:
+      - { src: 'templates/openvpn.service', dest: '/etc/systemd/system/openvpn@.service' }
+      - { src: 'templates/static.key', dest: '/etc/openvpn/static.key' }
+  
+  - name: copy server conf
+    copy:
+      src: templates/server.conf
+      dest: /etc/openvpn/server.conf
+      owner: root
+      group: root
+      mode: 0644
+    when: ansible_hostname == 'server'
+
+  - name: copy client conf
+    copy:
+      src: templates/client.conf
+      dest: /etc/openvpn/client.conf
+      owner: root
+      group: root
+      mode: 0644
+    when: ansible_hostname == 'client'
+
+  - name: start openvpn on server
+    service:
+      name: openvpn@server
+      state: started
+      enabled: true
+    when: ansible_hostname == 'server'
+
+  - name: start openvpn on client
+    service:
+      name: openvpn@client
+      state: started
+      enabled: true
+    when: ansible_hostname == 'client'

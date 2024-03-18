@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$script = <<-SCRIPT
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
+setenforce 0
+mv /tmp/files/watchlog /etc/sysconfig/watchlog
+mv /tmp/files/watchlog.log /var/log/watchlog.log
+mv /tmp/files/watchlog.sh /opt/watchlog.sh
+mv /tmp/files/watchlog.service /etc/systemd/system/watchlog.service
+mv /tmp/files/watchlog.timer /etc/systemd/system/watchlog.timer
+mv /tmp/files/spawn-fcgi /etc/sysconfig/spawn-fcgi
+mv /tmp/files/spawn-fcgi.service /etc/systemd/system/spawn-fcgi.service
+mv /tmp/files/httpd.service /usr/lib/systemd/system/httpd.service
+mv /tmp/files/first.conf /etc/httpd/conf/first.conf
+mv /tmp/files/second.conf /etc/httpd/conf/second.conf
+SCRIPT
+
+Vagrant.configure(2) do |config|
+    config.vm.box = "generic/centos8s"
+
+    config.vm.provider "virtualbox" do |v|
+        v.memory = 256
+        v.cpus = 1
+    end
+    config.vm.define "initd" do |initd|
+        initd.vm.network "private_network",ip:"192.168.11.10",virtualbox_intnet:"net1"
+        initd.vm.hostname = "initd"
+        initd.vm.provision "file",source:"files",destination:"/tmp/files"
+
+        initd.vm.provision "shell",path:"scripts/install.sh"
+
+        initd.vm.provision "shell" do |shell|
+            shell.inline = $script
+            shell.privileged = true
+        end
+        #initd.vm.provision "file",source:"files/watchlog",destination:"/etc/sysconfig/watchlog"
+        #initd.vm.provision "file",source:"files/watchlog.log",destination:"/var/log/watchlog.log"
+        #initd.vm.provision "file",source:"files/watchlog.sh",destination:"/opt/watchlog.sh"
+        #initd.vm.provision "file",source:"files/watchlog.service",destination:"/etc/systemd/system/watchlog.service"
+        #initd.vm.provision "file",source:"files/watchlog.timer",destination:"/etc/systemd/system/watchlog.timer"
+        #initd.vm.provision "file",source:"files/spawn-fcgi",destination:"/etc/sysconfig/spawn-fcgi"
+        #initd.vm.provision "file",source:"files/spawn-fcgi.service",destination:"/etc/systemd/system/spawn-fcgi.service"
+        #initd.vm.provision "file",source:"files/httpd.service",destination:"/usr/lib/systemd/system/httpd.service"
+        #initd.vm.provision "file",source:"files/first.conf",destination:"/etc/httpd/conf/first.conf"
+        #initd.vm.provision "file",source:"files/second.conf",destination:"/etc/httpd/conf/second.conf"
+        initd.vm.provision "shell",path:"scripts/final.sh"
+    end
+end

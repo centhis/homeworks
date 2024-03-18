@@ -1,0 +1,94 @@
+---
+- name: Configure inet router
+  hosts: all
+  become: true
+
+  vars:
+    
+
+  tasks:
+  - name: Disable ufw
+    service:
+      name: ufw
+      state: stopped
+      enabled: false
+    when: (ansible_hostname == "inetRouter") or 
+          (ansible_hostname == "inetRouter2")
+
+  - name: Set up NAT on inetRouter
+    template:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: "{{ item.mode }}"
+    with_items:
+      - {src: "iptables_rules.ipv4", dest: "/etc/iptables_rules.ipv4", mode: "0644"}
+      - {src: "iptables_restore", dest: "/etc/network/if-pre-up.d/iptables", mode: "0755"}
+    when: (ansible_hostname == "inetRouter") or 
+          (ansible_hostname == "inetRouter2")
+
+  - name: Install knockd
+    apt:
+      name: knockd
+      state: present
+    when: (ansible_hostname == "inetRouter") or 
+          (ansible_hostname == "inetRouter2")
+      
+
+  - name: Setup knockd on inetRouter
+    template:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: "{{ item.mode }}"
+    with_items:
+      - {src: "knockd.conf", dest: "/etc/knockd.conf", mode: "0644"}
+      - {src: "knockd", dest: "/etc/default/knockd", mode: "0644"}
+    when: (ansible_hostname == "inetRouter") or 
+          (ansible_hostname == "inetRouter2")
+
+  - name: Start knockd on inetRouter
+    service:
+      name: knockd
+      state: started
+      enabled: true
+    when: (ansible_hostname == "inetRouter") or 
+          (ansible_hostname == "inetRouter2")
+
+  - name: Copy script
+    template:
+      src: ssh_knock.sh
+      dest: ~/ssh_knock.sh
+    when: (ansible_hostname == "centralRouter")
+
+  - name: set up forwarding packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: '1'
+      state: present
+    when: "'routers' in group_names"
+
+  - name: disable default route
+    template: 
+      src: 00-installer-config.yaml
+      dest: /etc/netplan/00-installer-config.yaml
+      owner: root
+      group: root
+      mode: 0644
+    when: (ansible_hostname != "inetRouter") or 
+          (ansible_hostname != "inetRouter2")
+
+  - name: add routes
+    template: 
+      src: "50-vagrant_{{ansible_hostname}}.yaml"
+      dest: /etc/netplan/50-vagrant.yaml
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: restart all hosts
+    reboot:
+      reboot_timeout: 600
+
